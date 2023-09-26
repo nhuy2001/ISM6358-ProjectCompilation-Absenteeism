@@ -1,0 +1,40 @@
+---
+title: "2. Clustering"
+author: "Huy Nguyen"
+date: "2023-07-23"
+output: html_document
+---
+
+```{r}
+load("data_recode.RData")
+
+library(tidyverse)
+library(cluster)
+library(factoextra)
+
+dat2 <- dat %>% subset(select = -c(date))
+```
+
+```{r}
+toNum <- names(dat2)
+
+for (i in toNum) {
+  dat2[[i]] <- dat2[[i]] %>% as.numeric()
+}
+
+dat2 <- dat2 %>% scale()
+```
+
+```{r}
+fviz_nbclust(dat2, kmeans, method = "silhouette")
+fviz_nbclust(dat2, kmeans, method = "wss")
+gap_stat <- clusGap(dat2, FUN = kmeans, nstart = 25, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+```
+
+```{r}
+k2 <- kmeans(dat2, centers = 10, nstart = 100)
+fviz_cluster(k2, data = dat2)
+print(k2)
+```
+

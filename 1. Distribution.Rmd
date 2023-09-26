@@ -1,0 +1,230 @@
+---
+title: "1. Distribution"
+author: "Huy Nguyen"
+date: "2023-07-19"
+output: html_document
+---
+
+```{r}
+load("data_recode.RData")
+library(tidyverse)
+library(patchwork)
+library(lubridate)
+library(patchwork)
+library(ggrepel)
+library(ggdark)
+```
+
+```{r}
+dat$sickCode <- dat$abReason
+dat$sickCode[dat$sickCode > 21] <- NA
+```
+
+```{r}
+ggplot(dat, aes(meanWorkLoad_day, ""))+
+  geom_violin(color = "blue")+
+  geom_boxplot(alpha = .5, color = "blue")
+ggplot(dat, aes(hitTarget, ""))+
+  geom_violin(color = "red")+
+  geom_boxplot(alpha = .5, color = "red")
+ggplot(dat, aes(abSumHour, ""))+
+  geom_violin(color = "orange")+
+  geom_boxplot(alpha = .5, color = "orange")
+```
+
+```{r}
+ppl.sumAb <- dat %>% group_by(ID) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount
+  )
+
+ggplot(ppl.sumAb, aes(as.factor(ID), abRate, fill = as.factor(ID)))+
+  geom_col()+
+  theme(legend.position = "none")
+```
+
+```{r}
+work.ab <- dat %>% group_by(date) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount,
+    Hit.Target = mean(hitTarget),
+    workLoad = mean(meanWorkLoad_day)
+            )
+work.ab1 <- work.ab %>% 
+  select(date, Hit.Target, workLoad) %>% 
+  pivot_longer(cols = 2:3, names_to = "item", values_to = "value")
+
+work.ab2 <- work.ab %>% 
+  select(date, abCount, abHour, abRate) %>% 
+  pivot_longer(cols = 2:4, names_to = "item", values_to = "value")
+
+ggplot(work.ab1, aes(date, value, color = item))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  dark_theme_gray()+
+  geom_smooth(se = F, linetype = "dashed")+
+  facet_wrap(.~item, scales = "free")+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(work.ab2, aes(date, value, color = item))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  dark_theme_gray()+
+  scale_color_viridis_d()+
+  geom_smooth(se = F, linetype = "dashed")+
+  facet_wrap(.~item, scales = "free")+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+temp2 <- dat %>% group_by(date) %>% 
+  summarise(
+    abRate = sum(abSumHour) / n(),
+    Hit.Target = mean(hitTarget),
+    workLoad = mean(meanWorkLoad_day)
+            )
+
+mod2 <- lm(data = temp2, Hit.Target ~ abRate + workLoad)
+summary(mod2)
+```
+
+
+```{r}
+datAbReason <- dat %>% group_by(date, abReason2) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount
+    )
+
+ggplot(datAbReason, aes(date, abCount, color = abReason2))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  theme_bw()+
+  facet_wrap(.~abReason2)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(datAbReason, aes(date, abHour, color = abReason2))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  theme_bw()+
+  facet_wrap(.~abReason2)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(datAbReason, aes(date, abRate, color = abReason2))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  theme_bw()+
+  facet_wrap(.~abReason2)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+datSick <- dat %>% filter(abReason2 == "Sick") %>% group_by(date, sickCode) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount
+    )
+
+ggplot(datSick, aes(date, abCount, color = as.factor(sickCode)))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(.~sickCode)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(datSick, aes(date, abHour, color = as.factor(sickCode)))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(.~sickCode)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(datSick, aes(date, abRate, color = as.factor(sickCode)))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(.~sickCode)+
+  scale_x_date(date_breaks = "2 month", date_labels = "%b %Y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+datReasonSum <- dat %>% group_by(abReason2) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount
+    ) %>%
+  pivot_longer(
+    cols = 2:4,
+    names_to = "type",
+    values_to = "value"
+  )
+
+datSickSum <- dat %>% filter(abReason2 == "Sick") %>% group_by(sickCode) %>% 
+  summarise(
+    abCount = n(),
+    abHour = sum(abSumHour),
+    abRate = abHour / abCount
+    ) %>%
+  pivot_longer(
+    cols = 2:4,
+    names_to = "type",
+    values_to = "value"
+  )
+
+ggplot(datReasonSum, aes(abReason2, value, color = type, group = 1))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  dark_theme_gray()+
+  scale_color_viridis_d()+
+  facet_wrap(.~type, scales = "free_y")+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(datSickSum, aes(as.factor(sickCode), value, color = type, group = 1))+
+  geom_line(size = 1.5)+
+  geom_point(size = 3.5)+
+  dark_theme_gray()+
+  scale_color_viridis_d()+
+  facet_wrap(.~type, scales = "free_y")+
+  theme(legend.position = "none")
+```
+
+```{r}
+demographic <- dat %>% select(ID, transportCost, distanceToWork, serviceTime, age, education, numChild, alcohol, smoke, numPet, weight, height, BMI) %>% arrange(ID)
+
+demographic <- demographic %>% distinct()
+```
+
+```{r}
+demographic$abRate <- ppl.sumAb$abRate
+
+mod <- lm(
+  abRate ~ transportCost + distanceToWork + serviceTime + age + education + numChild + alcohol + smoke + numPet + BMI,
+  data = demographic)
+
+summary(mod)
+#violate homoscedasticity
+```
